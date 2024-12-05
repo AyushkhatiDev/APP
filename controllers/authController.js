@@ -1,34 +1,64 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const Task = require("../models/task");
 
-//Register a user
-exports.register = async (req, res) => {
-    const { email, password, name } = req.body;
+//Create a task
+exports.createTask = async (req, res) => {
+    const { title, description, priority, dueDate, labels } = req.body;
     try {
-        const userExists = await User.findOne({ email});
-        if(userExists) return res.status(400).json({message: 'User already exists'});
-
-        const user = await User.create.call({ email, passwordHash: password, name });
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h"});
-        res.status(201).josn({ token });
+      const task = new Task({
+        userId: req.user._id,
+        title,
+        description,
+        priority,
+        dueDate,
+        labels,
+      });
+      await task.save();
+      res.status(201).json(task);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message });
+    }
+  };
+  
+
+//Get all tasks for the user
+exports.getTasks = async (req, res) => {
+    try {
+        const task = await Task.find({ userId: req.user._id });
+        res.json(task);
+    } catch (error) {
+        res.status(500).json({ message: error.message});
     }
 };
 
-//Login a user
-exports.login = async (req, res) => {
-    const { email, password } = req.body;
+//Get a single task by ID
+exports.getTaskById = async (req, res) => {
     try {
-        const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ message: 'Invalid credentials' });
-
-        const isMatch = await user.comparePassword(password);   
-        if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
-
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h"});
-        res.json({ token });
+        const task = await Task.findById(req.params.id);
+        if(!task) return res.status(404).json({ message: "Task not found"});
+        res.json(task);
     } catch (error) {
-        res.status(500).json ({ message: error.message });
+        res.status(500).json({ message: error.message});
+    }
+};
+
+//Update a task
+exports.updateTask = async (req, res) => {
+    try {
+        const task = await Task.findById(req.params.id, req.body, { new: true });
+        if(!task) return res.status(404).json({ message: "Task not found"});
+        res.json(task);
+    } catch (error) {
+        res.status(500).json({ message: error.message});
+    }
+};
+
+//Delete a task
+exports.deleteTask = async (req, res) => {
+    try {
+        const task = await  Task.findByIdAndDelete(req.params.id);
+        if(!task) return res.status(404).json({ message: "Task not found"});
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json ({ message: error.message});
     }
 };

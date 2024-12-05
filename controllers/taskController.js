@@ -1,64 +1,109 @@
-const Task = require("../models/task");
+const Task = require('../models/task');
+const { validateTask } = require('../utils/validation');
 
-//Create a task
 exports.createTask = async (req, res) => {
-    const { title, description, priority, dueDate, labels } = req.body;
     try {
-      const task = new Task({
-        userId: req.user._id,
-        title,
-        description,
-        priority,
-        dueDate,
-        labels,
-      });
-      await task.save();
-      res.status(201).json(task);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  };
-  
+        const { title, description, priority, dueDate, labels } = req.body;
 
-//Get all tasks for the user
+        if (!validateTask(req.body)) {
+            return res.status(400).json({ message: 'Invalid task data' });
+        }
+
+        const task = new Task({
+            userId: req.user._id,
+            title,
+            description,
+            priority,
+            dueDate,
+            labels
+        });
+
+        await task.save();
+        res.status(201).json(task);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 exports.getTasks = async (req, res) => {
     try {
-        const task = await Task.find({ userId: req.user._id });
-        res.json(task);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const tasks = await Task.find({ userId: req.user._id })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        const total = await Task.countDocuments({ userId: req.user._id });
+
+        res.json({
+            tasks,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message});
+        res.status(500).json({ message: error.message });
     }
 };
 
-//Get a single task by ID
 exports.getTaskById = async (req, res) => {
     try {
-        const task = await Task.findById(req.params.id);
-        if(!task) return res.status(404).json({ message: "Task not found"});
+        const task = await Task.findOne({
+            _id: req.params.id,
+            userId: req.user._id
+        });
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+
         res.json(task);
     } catch (error) {
-        res.status(500).json({ message: error.message});
+        res.status(500).json({ message: error.message });
     }
 };
 
-//Update a task
 exports.updateTask = async (req, res) => {
     try {
-        const task = await Task.findById(req.params.id, req.body, { new: true });
-        if(!task) return res.status(404).json({ message: "Task not found"});
+        if (!validateTask(req.body)) {
+            return res.status(400).json({ message: 'Invalid task data' });
+        }
+
+        const task = await Task.findOneAndUpdate(
+            { _id: req.params.id, userId: req.user._id },
+            req.body,
+            { new: true, runValidators: true }
+        );
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+
         res.json(task);
     } catch (error) {
-        res.status(500).json({ message: error.message});
+        res.status(500).json({ message: error.message });
     }
 };
 
-//Delete a task
 exports.deleteTask = async (req, res) => {
     try {
-        const task = await  Task.findByIdAndDelete(req.params.id);
-        if(!task) return res.status(404).json({ message: "Task not found"});
+        const task = await Task.findOneAndDelete({
+            _id: req.params.id,
+            userId: req.user._id
+        });
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+
         res.status(204).send();
     } catch (error) {
-        res.status(500).json ({ message: error.message});
+        res.status(500).json({ message: error.message });
     }
 };
