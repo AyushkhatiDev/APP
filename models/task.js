@@ -1,50 +1,50 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema({
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Invalid email format']
-  },
-  passwordHash: { 
-    type: String, 
-    required: true,
-    select: false
-  },
-  name: { 
-    type: String, 
-    required: true,
-    trim: true,
-    maxLength: 100
-  }
-}, { 
-  timestamps: true 
+const taskSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
+    title: {
+        type: String,
+        required: true,
+        trim: true,
+        maxLength: 200
+    },
+    description: {
+        type: String,
+        trim: true,
+        maxLength: 1000
+    },
+    status: {
+        type: String,
+        enum: ['todo', 'inProgress', 'completed'],
+        default: 'todo'
+    },
+    priority: {
+        type: String,
+        enum: ['low', 'medium', 'high'],
+        default: 'medium'
+    },
+    dueDate: {
+        type: Date
+    },
+    labels: [{
+        type: String,
+        trim: true
+    }],
+    completed: {
+        type: Boolean,
+        default: false
+    }
+}, {
+    timestamps: true
 });
 
-userSchema.index({ email: 1 });
+taskSchema.index({ userId: 1, status: 1 });
+taskSchema.index({ userId: 1, dueDate: 1 });
 
-userSchema.pre('save', async function(next) {
-  try {
-    if (!this.isModified('passwordHash')) return next();
-    const salt = await bcrypt.genSalt(10);
-    this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-userSchema.methods.comparePassword = async function(password) {
-  try {
-    return await bcrypt.compare(password, this.passwordHash);
-  } catch (error) {
-    throw new Error('Password comparison failed');
-  }
-};
-
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-module.exports = User;
+const Task = mongoose.models.Task || mongoose.model('Task', taskSchema);
+module.exports = Task;

@@ -1,30 +1,30 @@
 const Task = require('../models/task');
 
-exports.createTask = async (req, res) => {
-    const task = new Task ({
+exports.createTask = async (taskData, userId) => {
+    const task = new Task({
         ...taskData,
         userId
     });
     return await task.save();
 };
 
-exports.getTasks = async (req, res) => {
+exports.getTasks = async (userId, page = 1, limit = 10) => {
     const skip = (page - 1) * limit;
     const [tasks, total] = await Promise.all([
-        Task.find({ userId})
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-    Task.countDocuments({ userId })
+        Task.find({ userId })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit),
+        Task.countDocuments({ userId })
     ]);
 
     return {
         tasks,
-        paginatio :{
+        pagination: {
             page,
             limit,
             total,
-            pages: Matj.ceil(total / limit)
+            pages: Math.ceil(total / limit)
         }
     };
 };

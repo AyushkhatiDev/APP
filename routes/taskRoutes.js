@@ -1,19 +1,31 @@
 const express = require('express');
 const router = express.Router();
-const protect = require('../middlewares/authMiddleware');
-const { validateTask } = require('../middlewares/validation');
+const { protect, validateTask } = require('../middlewares/authMiddleware');
 const {
     createTask,
     getTasks,
     getTaskById,
     updateTask,
-    deleteTask
+    deleteTask,
+    getTaskStats
 } = require('../controllers/taskController');
 
-router.post('/', protect, validateTask, createTask);
-router.get('/', protect, getTasks);
-router.get('/:id', protect, getTaskById);
-router.put('/:id', protect, validateTask, updateTask);
-router.delete('/:id', protect, deleteTask);
+// Log to debug undefined functions
+console.log({ createTask, getTasks, getTaskById, updateTask, deleteTask, getTaskStats });
+
+// Apply protect middleware to all routes
+router.use(protect);
+
+// Task routes
+router.route('/')
+    .post(validateTask, createTask)
+    .get(getTasks);
+
+router.get('/stats', getTaskStats);
+
+router.route('/:id')
+    .get(getTaskById)
+    .put(validateTask, updateTask)
+    .delete(deleteTask);
 
 module.exports = router;

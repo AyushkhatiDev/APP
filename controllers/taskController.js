@@ -1,24 +1,11 @@
 const Task = require('../models/task');
-const { validateTask } = require('../utils/validation');
 
 exports.createTask = async (req, res) => {
     try {
-        const { title, description, priority, dueDate, labels } = req.body;
-
-        if (!validateTask(req.body)) {
-            return res.status(400).json({ message: 'Invalid task data' });
-        }
-
-        const task = new Task({
-            userId: req.user._id,
-            title,
-            description,
-            priority,
-            dueDate,
-            labels
+        const task = await Task.create({
+            ...req.body,
+            userId: req.user._id
         });
-
-        await task.save();
         res.status(201).json(task);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -27,22 +14,24 @@ exports.createTask = async (req, res) => {
 
 exports.getTasks = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+        const { page = 1, limit = 10, status, priority } = req.query;
+        
+        const query = { userId: req.user._id };
+        if (status) query.status = status;
+        if (priority) query.priority = priority;
 
-        const tasks = await Task.find({ userId: req.user._id })
+        const tasks = await Task.find(query)
             .sort({ createdAt: -1 })
-            .skip(skip)
+            .skip((page - 1) * limit)
             .limit(limit);
 
-        const total = await Task.countDocuments({ userId: req.user._id });
+        const total = await Task.countDocuments(query);
 
         res.json({
             tasks,
             pagination: {
-                page,
-                limit,
+                page: Number(page),
+                limit: Number(limit),
                 total,
                 pages: Math.ceil(total / limit)
             }
@@ -71,14 +60,10 @@ exports.getTaskById = async (req, res) => {
 
 exports.updateTask = async (req, res) => {
     try {
-        if (!validateTask(req.body)) {
-            return res.status(400).json({ message: 'Invalid task data' });
-        }
-
         const task = await Task.findOneAndUpdate(
             { _id: req.params.id, userId: req.user._id },
             req.body,
-            { new: true, runValidators: true }
+            { new: true }
         );
 
         if (!task) {

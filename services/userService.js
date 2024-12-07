@@ -17,14 +17,21 @@ exports.updateUserProfile = async (userId, updates) => {
 };
 
 exports.updatePassword = async (userId, currentPassword, newPassword) => {
+    if (!newPassword || newPassword.length < 8) {
+        throw new Error('New password must be at least 8 characters long');
+    }
+
     const user = await User.findById(userId).select('+passwordHash');
-    if (!user) throw new Error('User not found');
+    if (!user) {
+        throw new Error('User not found');
+    }
     
-    if (!(await user.comparePassword(currentPassword))) {
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
         throw new Error('Current password is incorrect');
     }
 
-    user.passwordHash = newPassword;
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
     await user.save();
     return true;
 };

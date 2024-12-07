@@ -1,6 +1,10 @@
-const expres = require('express');
-const router = expres.Router();
-const { validateProfileUpdate, validatePasswordUpdate } = require('../middlewares/validation');
+const express = require('express');
+const router = express.Router();
+const protect = require('../middlewares/authMiddleware');
+const {
+    validateProfileUpdate,
+    validatePasswordUpdate
+} = require('../middlewares/validation');
 const {
     getProfile,
     updateProfile,
@@ -8,9 +12,14 @@ const {
     deleteAccount
 } = require('../controllers/userController');
 
-router.get('/profile', protect, getProfile);
-router.put('/profile', protect, validateProfileUpdate, updateProfile);
-router.put('/password', protect, validatePasswordUpdate, updatePassword);
-router.delete('/account', protect, deleteAccount);
+// Protected routes
+router.use(protect);
+
+router.route('/profile')
+    .get(getProfile)
+    .put(validateProfileUpdate, updateProfile);
+
+router.put('/password', validatePasswordUpdate, updatePassword);
+router.delete('/', deleteAccount);
 
 module.exports = router;
